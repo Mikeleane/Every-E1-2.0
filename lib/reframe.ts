@@ -1,0 +1,96 @@
+import { GenreId, getGenre, LINKERS, Lang, CEFR } from "./genres";
+
+function p(html:string){ return `<p>${html}</p>`; }
+
+function greeting(lang:Lang, informal:boolean){
+  switch(lang){
+    case "ga-IE": return informal ? "A chara," : "A dhuine uasail,";
+    case "fr":    return informal ? "Salut," : "Madame, Monsieur,";
+    case "de":    return informal ? "Hallo," : "Sehr geehrte Damen und Herren,";
+    case "es":    return informal ? "Hola," : "Estimado/a,";
+    default:      return informal ? "Hi," : "Dear Sir/Madam,";
+  }
+}
+function signoff(lang:Lang, informal:boolean){
+  switch(lang){
+    case "ga-IE": return informal ? "Sl?n," : "Le meas,";
+    case "fr":    return informal ? "? bient?t," : "Cordialement,";
+    case "de":    return informal ? "Viele Gr??e," : "Mit freundlichen Gr??en,";
+    case "es":    return informal ? "Un saludo," : "Atentamente,";
+    default:      return informal ? "Best," : "Yours sincerely,";
+  }
+}
+
+export function reframeHtml(
+  text:string,
+  title:string,
+  lang:Lang,
+  cefr:CEFR,
+  genreId:GenreId,
+  opts?: { includeTitle?: boolean }
+){
+  const g = getGenre(genreId);
+  const lk = LINKERS[lang];
+  const includeTitle = opts?.includeTitle ?? false;
+
+  const paras = text.split(/\n{2,}/).filter(Boolean).map(s=>s.trim());
+  const simple = paras.length ? paras : text
+    .split(/(?<=[.!?])\s+/)
+    .reduce((acc,s,i)=>{ const k = Math.floor(i/3); acc[k]=(acc[k]||"")+" "+s; return acc; }, [] as string[])
+    .map(s=>s.trim()).filter(Boolean);
+
+  if (genreId === "informal_email" || genreId==="formal_email") {
+    const informal = genreId==="informal_email";
+    const body = simple.map(p).join("");
+    return `
+      <div role="doc-email">
+        <div class="text-sm text-gray-500 mb-2"><b>Subject:</b> ${title}</div>
+        ${p(greeting(lang, informal))}
+        ${body}
+        ${p(signoff(lang, informal))}
+        ${p("<em>? " + (lang==="ga-IE"?"Ainm":lang==="fr"?"Pr?nom":lang==="de"?"Name":lang==="es"?"Nombre":"Name") + "</em>")}
+      </div>
+    `;
+  }
+
+  if (genreId === "report") {
+    return `
+      ${includeTitle ? `<h3 class="font-semibold">${title}</h3>` : ""}
+      <h4 class="mt-2 font-semibold">Purpose</h4>${p(`${lk.first}, this report outlines the key points.`)}
+      <h4 class="mt-2 font-semibold">Findings</h4>${simple.length ? `<ul class="list-disc pl-6">${simple.map(s=>`<li>${s}</li>`).join("")}</ul>` : ""}
+      <h4 class="mt-2 font-semibold">Conclusion</h4>${p(`${lk.therefore}, ${simple.slice(-1)[0] || ""}`)}
+    `;
+  }
+
+  if (genreId === "review") {
+    return `
+      ${includeTitle ? `<h3 class="font-semibold">${title}</h3>` : ""}
+      ${p(simple[0] || "")}
+      <h4 class="mt-2 font-semibold">Verdict</h4>
+      ${p("Rating: ?????")}
+      ${simple.slice(1).map(p).join("")}
+    `;
+  }
+
+  if (genreId === "blog") {
+    const body = simple.slice(1).map(s=>`<h4 class="mt-2 font-semibold">${lk.then}</h4>${p(s)}`).join("");
+    return `${includeTitle ? `<h3 class="font-semibold">${simple[0] || title}</h3>` : ""}${includeTitle ? body : p(simple[0] || "") + body}`;
+  }
+
+  if (genreId === "sms") {
+    const sent = text.split(/(?<=[.!?])\s+/).filter(Boolean);
+    const bubbles = sent.slice(0,12).map((s,i)=>`<div class="rounded-xl px-3 py-2 border mb-2 ${i%2? 'ml-12':'mr-12'}"><b>${i%2? 'B':'A'}:</b> ${s}</div>`).join("");
+    return `<div aria-label="messages">${bubbles}</div>`;
+  }
+
+  if (genreId === "thread") {
+    const items = simple.slice(0,1).concat(simple.slice(1,5));
+    const out = items.map((s,i)=> i===0
+      ? `<div class="border rounded-lg p-2 mb-2"><b>@poster</b> ? ${s}</div>`
+      : `<div class="border rounded-lg p-2 mb-2 ml-6"><b>@user${i}</b> ${s}</div>`).join("");
+    return `<div aria-label="thread">${out}</div>`;
+  }
+
+  const header = includeTitle ? `<h3 class="font-semibold">${title}</h3>` : "";
+  return `${header}${simple.map(p).join("")}`;
+}

@@ -1,0 +1,12 @@
+export default function Home() {
+  return (
+    <main className="p-6">
+      <h1 className="text-2xl font-semibold mb-2">Every-E1 2.0</h1>
+      <p className="mb-4">Open the Builder to generate Standard, Adapted, and Teacher packs.</p>
+      {/* eslint-disable @next/next/no-html-link-for-pages */}
+      <a href="/generate" className="inline-block rounded-lg bg-green-600 text-white px-4 py-2">
+        Open the Builder →
+      </a>
+    </main>
+  );
+}

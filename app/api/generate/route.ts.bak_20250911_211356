@@ -1,0 +1,109 @@
+import { NextRequest, NextResponse } from "next/server";
+import OpenAI from "openai";
+export const runtime = "nodejs";
+
+function clamp(s: string, n: number) { return (s || "").slice(0, n); }
+function stripFences(s: string) { return (s || "").replace(/```(?:json)?/g, "").trim(); }
+
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+
+
+const PACK_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["standard","adapted","teacher","questions"],
+  properties: {
+    standard: { type: "string", minLength: 20 },
+    adapted:  { type: "string", minLength: 20 },
+    teacher:  { type: "string", minLength: 20 },
+    questions: {
+      type: "array",
+      minItems: 5,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["q","a"],
+        properties: { q: { type: "string" }, a: { type: "string" } }
+      }
+    }
+  }
+};
+(req: NextRequest) {
+  const t0 = Date.now();
+  try {
+    const rawBody = await req.text();
+    if (!rawBody) return NextResponse.json({ ok:false, error:"Empty body" }, { status:400 });
+
+    let body: any;
+    try { body = JSON.parse(rawBody); }
+    catch { return NextResponse.json({ ok:false, error:"Invalid JSON" }, { status:400 }); }
+
+    const title = clamp(String(body?.title ?? ""), 120);
+    const goal  = clamp(String(body?.goal  ?? ""), 40);
+    const cefr  = clamp(String(body?.cefr  ?? ""), 8);
+    const text  = clamp(String(body?.text  ?? ""), 50_000);
+    const url   = clamp(String(body?.url   ?? ""), 2000);
+
+    if (!text && !url) return NextResponse.json({ ok:false, error:"Empty input" }, { status:400 });
+
+    // Dry run for quick health checks
+    if (req.nextUrl.searchParams.get("dry")) {
+      return NextResponse.json({ ok:true, stub:true, ms: Date.now()-t0, echo:{ title, goal, cefr, text, url } });
+    }
+
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ ok:false, error:"Missing OPENAI_API_KEY" }, { status: 500 });
+    }
+
+    // Build the prompt
+    const input = [
+      { role: "system", content: "Return ONLY valid JSON: {standard, adapted, teacher, questions:[{q,a}] }" },
+      { role: "user", content: `title: ${title}\ncefr: ${cefr}\ngoal: ${goal}\nurl: ${url}\ntext:\n${text}` }
+    ];
+
+    // Call REST API directly
+    const r = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+        input,
+        temperature: 0.2,
+        max_output_tokens: 2000,
+      })
+    });
+
+    if (!r.ok) {
+      const errTxt = await r.text().catch(()=> "");
+      return NextResponse.json(
+        { ok:false, error:`Upstream ${r.status} ${r.statusText}`, upstream: errTxt.slice(0,500) },
+        { status: 502 }
+      );
+    }
+
+    const oj: any = await r.json();
+    // responses API: prefer output_text; fall back to a couple of known shapes
+    const rawOut = oj?.output_text
+      ?? oj?.output?.[0]?.content?.[0]?.text
+      ?? (typeof oj === "string" ? oj : "");
+
+    const clean = stripFences(String(rawOut || ""));
+    let pack: any;
+    try { pack = JSON.parse(clean); }
+    catch {
+      return NextResponse.json(
+        { ok:false, error:"LLM output was not JSON", raw: String(rawOut || "").slice(0,500) },
+        { status: 502 }
+      );
+    }
+
+    return NextResponse.json({ ok:true, ms: Date.now()-t0, pack });
+  } catch (e: any) {
+    console.error("API /generate error:", e);
+    return NextResponse.json({ ok:false, error: String(e?.message || e) }, { status: 500 });
+  }
+}

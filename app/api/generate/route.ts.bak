@@ -1,0 +1,76 @@
+import { NextResponse } from "next/server";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+function clamp(s: string, max = 50_000) {
+  return (s ?? "").slice(0, max);
+}
+
+export async function GET() {
+  const __r = NextResponse.json({ ok: true, route: "generate", ts: Date.now() });
+__r.headers.set("content-type","application/json; charset=utf-8");
+return __r;
+}
+
+export async function POST(req: Request) {
+  const t0 = Date.now();
+
+  // Parse + clamp
+  let body: any;
+  try { body = await req.json(); }
+  catch { const __r = NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+__r.headers.set("content-type","application/json; charset=utf-8");
+return __r; }
+
+  const text  = clamp(String(body?.text ?? ""));
+  const title = clamp(String(body?.title ?? ""), 200);
+  const goal  = clamp(String(body?.goal ?? ""), 40);
+  const cefr  = clamp(String(body?.cefr ?? ""), 8);
+
+  if (!text) {
+
+}
+
+  // Easy on/off switch + safe default
+  const USE_STUB = process.env.GEN_STUB === "1" || !process.env.OPENAI_API_KEY;
+  if (USE_STUB) {
+    const __r = NextResponse.json({
+      ok: true, stub: true, ms: Date.now() - t0,
+      echo: { title, cefr, goal, text: text.slice(0, 120) }
+    });
+__r.headers.set("content-type","application/json; charset=utf-8");
+return __r;
+  }
+
+  // Lazy import heavy deps
+  const { default: OpenAI } = await import("openai");
+  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+
+  // Per-call timeout
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort("timeout"), 12_000);
+
+  try {
+    const resp: any = await client.responses.create(
+      { model: "gpt-4o-mini", input: `Echo: ${text.slice(0, 200)}` },
+      // @ts-ignore: pass signal to SDK
+      { signal: ctrl.signal }
+    );
+
+    const __r = NextResponse.json({
+      ok: true,
+      ms: Date.now() - t0,
+      output: resp?.output_text ?? "ok"
+    });
+__r.headers.set("content-type","application/json; charset=utf-8");
+return __r;
+  } catch (err: any) {
+    const status = err?.name === "AbortError" ? 504 : 500;
+    const __r = NextResponse.json({ ok: false, error: String(err) }, { status });
+__r.headers.set("content-type","application/json; charset=utf-8");
+return __r;
+  } finally {
+    clearTimeout(timer);
+  }
+}

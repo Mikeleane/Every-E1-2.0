@@ -1,0 +1,123 @@
+import type { Doc } from "./analyze";
+
+export type Built = {
+  std: { n:number; q:string; support:number[]; answer:string }[];
+  ld:  { n:number; q:string; support:number[]; answer:string; kind:"tf"|"ab"|"order"|"cloze" }[];
+  key: { n:number; a:string }[];
+  eq:  { n:number; mapsTo:number }[];
+};
+
+function pick<T>(xs:T[], i:number) { return xs[Math.min(i, xs.length-1)] }
+function sent(doc:Doc, id:number) { return (doc.sentences.find(s=>s.id===id)||{text:""}).text }
+
+function normClause(s:string){ return (s||"").replace(/^\s*(And|But|So)\s+/i,"").replace(/\s*[.?!]\s*$/,"").trim(); }
+
+// Heuristic finder if doc.cause is weak/missing
+function findCauseEffect(doc:Doc){
+  for (const s of doc.sentences){
+    const t = s.text;
+    let m = t.match(/\bbecause\b/i);
+    if (m){
+      const [before, after] = t.split(/\bbecause\b/i);
+      if (before && after) return { cause: normClause(after), effect: normClause(before), sentenceId: s.id };
+    }
+    m = t.match(/\b(so|therefore|as a result|led to|resulted in)\b/i);
+    if (m){
+      const [before, after] = t.split(m[0]);
+      if (before && after) return { cause: normClause(before), effect: normClause(after), sentenceId: s.id };
+    }
+  }
+  const banned = doc.sentences.find(s => /\bbanned?\b/i.test(s.text));
+  const secret = doc.sentences.find(s => /\bsecret\b/i.test(s.text));
+  if (banned && secret) return { cause: normClause(banned.text), effect: normClause(secret.text), sentenceId: secret.id };
+  return null;
+}
+
+export function buildComprehension(doc:Doc){
+  const std: Built["std"] = [];
+  const ld : Built["ld"]  = [];
+
+  const mainId = (doc.salient[0] || (doc.sentences[0]?.id ?? 1));
+  std.push({ n:1, q:"Write the main idea in one sentence.", support:[mainId], answer: sent(doc, mainId) });
+  ld .push({ n:1, q:"The text is mainly about the title topic. True / False?", support:[mainId], answer:"True", kind:"tf" });
+
+  const det = doc.sentences.find(s => doc.numbers.some(n => s.text.includes(n)) || doc.entities.some(e => s.text.includes(e))) || doc.sentences[1] || doc.sentences[0];
+  std.push({ n:2, q:"Write one key detail exactly as stated in the text.", support:[det.id], answer: det.text });
+  ld .push({ n:2, q:`Detail check: "${det.text}" ? True / False?`, support:[det.id], answer:"True", kind:"tf" });
+
+  std.push({ n:3, q:"What is the tone or stance? Quote 3?6 words to support your answer.", support:[], answer: (doc as any).tone || "" });
+  ld .push({ n:3, q:`Tone: mostly positive / negative / neutral?`, support:[], answer: (doc as any).tone || "neutral", kind:"ab" });
+
+  let ce:any = (doc as any).cause?.find?.(Boolean);
+  const good = (x:any) => x && /\b(because|so|therefore|as a result|led to|resulted in|banned|secret)\b/i.test((x.cause||"")+" "+(x.effect||""));
+  if (!good(ce)) ce = findCauseEffect(doc);
+  if (ce) {
+    const cause = normClause(ce.cause), effect = normClause(ce.effect);
+    std.push({ n:4, q:"Give one cause and its effect from the text.", support:[ce.sentenceId], answer: `Cause: ${cause}; Effect: ${effect}` });
+    ld .push({ n:4, q:"Choose the best link: because / so.", support:[ce.sentenceId], answer:"because/so", kind:"cloze" });
+  } else {
+    const s = pick(doc.sentences,Math.min(2,doc.sentences.length-1));
+    std.push({ n:4, q:"Name one connection between two ideas in the text.", support:[s.id], answer: s.text });
+    ld .push({ n:4, q:"This idea is linked to another idea. True / False?", support:[s.id], answer:"True", kind:"tf" });
+  }
+
+  const seq = (doc as any).sequence?.filter?.((x:any,i:number,a:any[])=> a.findIndex(y=>y.text===x.text)===i).slice(0,2) || [];
+  if (seq.length === 2 && seq[0].text !== seq[1].text) {
+    std.push({ n:5, q:`Put these in order: A) ${seq[0].text}  B) ${seq[1].text}`, support:[seq[0].sentenceId, seq[1].sentenceId], answer:"A ? B" });
+    ld .push({ n:5, q:"Order: A first, B second. (A/B)", support:[seq[0].sentenceId, seq[1].sentenceId], answer:"A?B", kind:"order" });
+  } else {
+    const a = doc.sentences[0];
+    const b = doc.sentences[1] || doc.sentences[0];
+    if (a && b && a.text !== b.text){
+      std.push({ n:5, q:`Which event comes first: "${a.text}" or "${b.text}"?`, support:[a.id,b.id], answer:a.text });
+      ld .push({ n:5, q:"Which comes first? A/B", support:[a.id,b.id], answer:"A", kind:"order" });
+    } else {
+      std.push({ n:5, q:"Write two events from the text in order.", support:[], answer:"(varies)" });
+      ld .push({ n:5, q:"Pick the first event. A/B", support:[], answer:"A", kind:"order" });
+    }
+  }
+
+  const infS = pick(doc.sentences, Math.min(2, doc.sentences.length-1));
+  std.push({ n:6, q:"What is probably true? Write one inference and say why.", support:[infS.id], answer: infS.text });
+  ld .push({ n:6, q:"This is probably true. True / False?", support:[infS.id], answer:"True", kind:"tf" });
+
+  std.push({ n:7, q:"What is the author's purpose (inform / persuade / entertain / explain)? Justify with evidence.", support:[], answer: (doc as any).purpose || "" });
+  ld .push({ n:7, q:"Purpose: inform / persuade / explain?", support:[], answer: (doc as any).purpose || "inform", kind:"ab" });
+
+  const evS = pick(doc.sentences, Math.min(3, doc.sentences.length-1));
+  std.push({ n:8, q:"Do you agree with one idea in the text? Write your view and quote a short evidence line.", support:[evS.id], answer:"(varies)" });
+  ld .push({ n:8, q:"Agree / Disagree and pick one sentence as a reason.", support:[evS.id], answer:"(varies)", kind:"ab" });
+
+  const key = std.map(x => ({ n:x.n, a:x.answer }));
+  const eq  = std.map(x => ({ n:x.n, mapsTo:x.n }));
+  return { std, ld, key, eq };
+}
+
+export function buildVocabulary(doc:Doc, targets:string[]) {
+  const chosen = targets.slice(0, Math.min(10, targets.length));
+  const std: Built["std"] = [];
+  const ld : Built["ld"]  = [];
+  let qn = 1;
+  for (const t of chosen.slice(0,6)) {
+    const s = doc.sentences.find(s => new RegExp(`\\b${t}\\b`, "i").test(s.text));
+    const sid = s?.id ? [s.id] : [];
+    std.push({ n: qn, q: `Definition in context: what does ?${t}? mean in this sentence?`, support: sid, answer: s?.text || "" });
+    ld .push({ n: qn, q: `?${t}? means A/B (pick the best meaning from the sentence).`, support: sid, answer: "A", kind: "ab" });
+    qn++;
+  }
+  const s = doc.sentences.find(x => x.tokens.length > 6) || doc.sentences[0];
+  const picked = chosen.find(w => s && new RegExp(`\\b${w}\\b`,"i").test(s.text)) || chosen[0] || "";
+  const cloze = s?.text?.replace(new RegExp(`\\b${picked}\\b`,"i"), "____") || "____";
+  std.push({ n: qn, q: `Fill the exact word that fits: ${cloze}`, support: s ? [s.id] : [], answer: picked }); qn++;
+  ld .push({ n: qn-1, q: `Choose the word that fits: ${cloze}  [${picked} / (near-synonym)]`, support: s ? [s.id] : [], answer: picked, kind:"cloze" });
+
+  const s2 = doc.sentences.find(x => chosen.some(w => new RegExp(`\\b${w}\\b`,"i").test(x.text)));
+  const target = chosen.find(w => s2 && new RegExp(`\\b${w}\\b`,"i").test(s2.text)) || chosen[1] || "";
+  const neigh = s2 ? (s2.text.match(new RegExp(`\\b\\w+\\s+${target}\\b|\\b${target}\\s+\\w+`,"i")) || [target])[0] : target;
+  std.push({ n: qn, q: `Collocation: write a natural partner for ?${target}? from the text.`, support: s2? [s2.id]:[], answer: neigh });
+  ld .push({ n: qn, q: `Pick the natural partner with ?${target}?.`, support: s2? [s2.id]:[], answer: neigh, kind:"ab" });
+
+  const key = std.map(x => ({ n:x.n, a:x.answer }));
+  const eq  = std.map(x => ({ n:x.n, mapsTo:x.n }));
+  return { std, ld, key, eq };
+}

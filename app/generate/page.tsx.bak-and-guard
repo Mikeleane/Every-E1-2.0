@@ -1,0 +1,145 @@
+"use client";
+
+import * as React from "react";
+import { useState } from "react";
+import PrintButton from "../../components/PrintButton";
+
+type Goal = "vocab" | "comp" | "grammar";
+type Pack = {
+  ok: boolean;
+  goal: Goal;
+  targets: { vocab: string[]; grammar: { pattern: string | null } };
+  standard: string; adapted: string; teacher: string;
+  questions: { n: number; q: string }[];
+  questionsLD: { n: number; q: string }[];
+  answerKey: { n: number; a: string }[];
+  equivalence: { n: number; mapsTo: number }[];
+};
+
+export default function GeneratePage() {
+  const [url, setUrl] = useState("");
+  const [text, setText] = useState("");
+  const [title, setTitle] = useState("Untitled");
+  const [cefr, setCefr] = useState("B1");
+  const [goal, setGoal] = useState<Goal>("comp");
+  const [loading, setLoading] = useState(false);
+  const [pack, setPack] = useState<Pack | null>(null);
+  const [showQs, setShowQs] = useState(false);
+
+  async function generate() {
+    setLoading(true); setShowQs(false);
+    try {
+      if (!(text?.trim()) -and !(url?.trim())) { alert('Paste text or provide a URL'); setLoading(false); return; }
+      if (!(text?.trim()) && !(url?.trim())) { alert('Paste text or provide a URL'); setLoading(false); return; }
+const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, text, title, cefr, goal })
+      });
+      const raw = await res.text();
+let json: any = null;
+try {
+      if (!(text?.trim()) -and !(url?.trim())) { alert('Paste text or provide a URL'); setLoading(false); return; } json = raw ? JSON.parse(raw) : null; } catch {}
+if (!res.ok || !json) {
+  const msg = (json && (json.error || json.message)) ? (json.error + (json.message?": "+json.message:"")) : `HTTP ${res.status} ${res.statusText}: ${raw?.slice(0,200)}`;
+  console.error(msg); return;
+}
+            const data: any = json;
+      const pack = data?.pack ?? (data?.output ? {
+        standard: data.output,
+        adapted: data.output,
+        teacher: "",
+        questions: []
+      } : null);
+      if (!pack) { console.error("Bad response shape"); setError("Unexpected response from server."); return; }
+      setPack(pack);
+    } catch (e) {
+      console.error(e); alert("Generation failed.");
+    } finally { setLoading(false); }
+  }
+
+  return (
+    <main>
+      <div className="flex items-center justify-between gap-3 mb-4 print:hidden">
+        <h1 className="text-2xl font-semibold">Aontas ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Builder</h1>
+        <PrintButton />
+      </div>
+
+      <section className="grid md:grid-cols-4 gap-3 print:hidden">
+        <div className="md:col-span-2 space-y-2">
+          <label className="block text-sm font-medium">Paste URL (optional)</label>
+          <input value={url} onChange={e=>setUrl(e.target.value)}
+                 className="w-full border rounded-lg p-2" placeholder="https://example.com/article" />
+        </div>
+        <div className="space-y-2">
+          <label className="block text-sm font-medium">Title</label>
+          <input value={title} onChange={e=>setTitle(e.target.value)}
+                 className="w-full border rounded-lg p-2" placeholder="Lesson title" />
+        </div>
+        <div className="space-y-2">
+          <label className="block text-sm font-medium">CEFR</label>
+          <select value={cefr} onChange={e=>setCefr(e.target.value)}
+                  className="w-full border rounded-lg p-2">
+            {["A2","B1","B2","C1"].map(l=> <option key={l} value={l}>{l}</option>)}
+          </select>
+        </div>
+        <div className="space-y-2">
+          <label className="block text-sm font-medium">Input Goal</label>
+          <select value={goal} onChange={e=>setGoal(e.target.value as Goal)}
+                  className="w-full border rounded-lg p-2">
+            <option value="comp">Comprehension</option>
+            <option value="vocab">Vocabulary</option>
+            <option value="grammar">Grammar</option>
+          </select>
+        </div>
+        <div className="md:col-span-4 space-y-2">
+          <label className="block text-sm font-medium">Or paste text</label>
+          <textarea value={text} onChange={e=>setText(e.target.value)}
+                    rows={8} className="w-full border rounded-lg p-3"
+                    placeholder="Paste any article or text hereÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" />
+          <div className="flex gap-2">
+            <button onClick={generate} disabled={loading}
+                    className="px-3 py-2 rounded-lg bg-green-600 text-white hover:opacity-90">
+              {loading ? "Generating" : "Generate"}
+            </button>
+            {pack && (
+              <button onClick={()=>setShowQs(v=>!v)}
+                      className="px-3 py-2 rounded-lg border">
+                {showQs ? "Hide questions" : "Show questions"}
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {pack && (
+        <section className="grid md:grid-cols-2 gap-4 mt-6">
+          <article className="border rounded-xl p-4 bg-white">
+            <div className="text-sm font-semibold mb-2">Standard</div>
+            <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: pack.standard }} />
+            {showQs && (
+              <ol className="list-decimal pl-5 mt-4 space-y-1">
+                {pack.questions.map(q => <li key={q.n}>{q.q}</li>)}
+              </ol>
+            )}
+          </article>
+
+          <article className="border rounded-xl p-4 bg-white">
+            <div className="text-sm font-semibold mb-2">Adapted</div>
+            <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: pack.adapted }} />
+            {showQs && (
+              <ol className="list-decimal pl-5 mt-4 space-y-1">
+                {pack.questionsLD.map(q => <li key={q.n}>{q.q}</li>)}
+              </ol>
+            )}
+          </article>
+
+          <article className="md:col-span-2 border rounded-xl p-4 bg-white">
+            <div className="text-sm font-semibold mb-2">Teacher</div>
+            <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: pack.teacher }} />
+          </article>
+        </section>
+      )}
+    </main>
+  );
+}

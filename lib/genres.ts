@@ -1,0 +1,139 @@
+export type CEFR = "A1"|"A2"|"B1"|"B2"|"C1"|"C2";
+export type Lang = "ga-IE"|"en"|"fr"|"de"|"es";
+
+export type GenreId =
+  | "informal_email" | "formal_email" | "article" | "story" | "essay"
+  | "report" | "review" | "blog" | "sms" | "thread";
+
+type Range = { words:[number,number]; avgWS:[number,number] };
+
+export type GenreProfile = {
+  id: GenreId;
+  register: "informal" | "neutral" | "formal";
+  purpose: "inform"|"persuade"|"narrate"|"evaluate"|"report";
+  structure: string[];          // ordered moves
+  mustHave: string[];           // required elements
+  lengthByCEFR: Record<CEFR, Range>;
+  surface: {
+    contractions?: boolean; emojis?: "none"|"light";
+    bullets?: boolean; headings?: boolean; signOff?: boolean; rating?: boolean; subjectLine?: boolean;
+  };
+};
+
+export const LINKERS: Record<Lang, { first:string; then:string; because:string; so:string; however:string; therefore:string; }> = {
+  "en":    { first:"First",    then:"Then",    because:"because",   so:"so",          however:"However",   therefore:"Therefore" },
+  "ga-IE": { first:"Ar dt?s",  then:"Ansin",   because:"mar",       so:"mar sin",     however:"?fach",     therefore:"D? bhr? sin" },
+  "fr":    { first:"D'abord",  then:"Ensuite", because:"parce que", so:"donc",        however:"Cependant", therefore:"Par cons?quent" },
+  "de":    { first:"Zuerst",   then:"Dann",    because:"weil",      so:"also",        however:"Allerdings",therefore:"Daher" },
+  "es":    { first:"Primero",  then:"Luego",   because:"porque",    so:"por eso",     however:"Sin embargo", therefore:"Por lo tanto" },
+};
+
+// Base ranges for neutral prose
+const base: Record<CEFR, Range> = {
+  A1:{words:[80,120],  avgWS:[6,9]},
+  A2:{words:[120,180], avgWS:[8,12]},
+  B1:{words:[200,350], avgWS:[12,16]},
+  B2:{words:[350,550], avgWS:[16,22]},
+  C1:{words:[550,800], avgWS:[18,26]},
+  C2:{words:[800,1200],avgWS:[20,30]}
+};
+
+function shorten(r:Range, fLow=0.7, fHigh=0.75): Range {
+  return {
+    words:[Math.round(r.words[0]*fLow), Math.round(r.words[1]*fHigh)],
+    avgWS:[Math.max(4, r.avgWS[0]-1), Math.max(6, r.avgWS[1]-2)]
+  };
+}
+
+// Social genres: tighter caps
+const smsRanges: Record<CEFR, Range> = {
+  A1:{words:[60,120],  avgWS:[4,9]},
+  A2:{words:[80,140],  avgWS:[5,10]},
+  B1:{words:[100,180], avgWS:[6,12]},
+  B2:{words:[120,200], avgWS:[7,12]},
+  C1:{words:[140,220], avgWS:[8,13]},
+  C2:{words:[160,240], avgWS:[8,14]}
+};
+const threadRanges: Record<CEFR, Range> = {
+  A1:{words:[80,150],  avgWS:[6,10]},
+  A2:{words:[120,200], avgWS:[7,12]},
+  B1:{words:[180,300], avgWS:[9,14]},
+  B2:{words:[250,400], avgWS:[12,18]},
+  C1:{words:[300,500], avgWS:[14,20]},
+  C2:{words:[350,550], avgWS:[16,22]}
+};
+
+export const GENRES: Record<GenreId, GenreProfile> = {
+  informal_email: {
+    id:"informal_email", register:"informal", purpose:"inform",
+    structure:["Subject","Greeting","Reason","Detail","Ask/Plan","Sign-off"],
+    mustHave:["Greeting","Sign-off"],
+    lengthByCEFR:{
+      A1:shorten(base.A1), A2:shorten(base.A2), B1:shorten(base.B1),
+      B2:base.B2, C1:base.C1, C2:base.C2
+    },
+    surface:{contractions:true, emojis:"light", signOff:true, subjectLine:true}
+  },
+  formal_email: {
+    id:"formal_email", register:"formal", purpose:"inform",
+    structure:["Subject","Salutation","Purpose","Details","Request/Next steps","Closing"],
+    mustHave:["Salutation","Closing"],
+    lengthByCEFR:{
+      A1:shorten(base.A1), A2:shorten(base.A2), B1:shorten(base.B1),
+      B2:base.B2, C1:base.C1, C2:base.C2
+    },
+    surface:{contractions:false, emojis:"none", signOff:true, subjectLine:true}
+  },
+  article: {
+    id:"article", register:"neutral", purpose:"inform",
+    structure:["Headline","Intro","Body","Body","Close"], mustHave:["Headline"],
+    lengthByCEFR: base,
+    surface:{headings:true}
+  },
+  story: {
+    id:"story", register:"neutral", purpose:"narrate",
+    structure:["Hook","Setting","Problem","Events","Resolution"], mustHave:["Hook","Resolution"],
+    lengthByCEFR: base,
+    surface:{}
+  },
+  essay: {
+    id:"essay", register:"neutral", purpose:"persuade",
+    structure:["Thesis","Body","Body","Conclusion"], mustHave:["Thesis","Conclusion"],
+    lengthByCEFR: base,
+    surface:{headings:true}
+  },
+  report: {
+    id:"report", register:"formal", purpose:"report",
+    structure:["Title","Purpose","Findings","Findings","Conclusion"], mustHave:["Findings"],
+    lengthByCEFR: base,
+    surface:{bullets:true, headings:true}
+  },
+  review: {
+    id:"review", register:"neutral", purpose:"evaluate",
+    structure:["Title","Summary","Criteria","Verdict"], mustHave:["Verdict"],
+    lengthByCEFR: base,
+    surface:{rating:true, headings:true}
+  },
+  blog: {
+    id:"blog", register:"informal", purpose:"inform",
+    structure:["Title","Hook","Body","Takeaway"], mustHave:["Title"],
+    lengthByCEFR: base,
+    surface:{headings:true}
+  },
+  sms: {
+    id:"sms", register:"informal", purpose:"inform",
+    structure:["Exchange"], mustHave:["Exchange"],
+    lengthByCEFR: smsRanges,
+    surface:{emojis:"light"}
+  },
+  thread: {
+    id:"thread", register:"informal", purpose:"inform",
+    structure:["Post","Replies"], mustHave:["Replies"],
+    lengthByCEFR: threadRanges,
+    surface:{emojis:"light"}
+  }
+};
+
+export function getGenre(id: GenreId): GenreProfile {
+  return GENRES[id] ?? GENRES.article;
+}

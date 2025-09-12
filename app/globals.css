@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+/* Print niceties */
+@media print {
+  .print\:hidden { display: none !important; }
+  article { break-inside: avoid; }
+}

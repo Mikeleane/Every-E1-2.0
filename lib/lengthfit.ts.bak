@@ -1,0 +1,39 @@
+import { analyze } from "./analyze";
+import { getGenre, CEFR, GenreId } from "./genres";
+
+function wordCount(s: string){
+  // Cross-compatible word matcher (Latin letters + common accents + digits + hyphen/apostrophe)
+  return (s.match(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9'-]+/g) || []).length;
+}
+
+export function lengthFit(baseText: string, title: string, cefr: CEFR, genreId: GenreId){
+  const prof   = getGenre(genreId);
+  const target = prof.lengthByCEFR[cefr].words;
+  const doc    = analyze(baseText, title);
+
+  if (doc.sentences.length === 0){
+    return { text: baseText, keptIds: [], metrics: { words: wordCount(baseText), target, fits: false } };
+  }
+
+  // Start with all sentences; drop low-salience ones until we fit the upper target bound.
+  const keep = new Set<number>(doc.sentences.map(s => s.id));
+  const ids  = doc.sentences.map(s => s.id);
+  const protect = new Set<number>(doc.salient); // keep top sentences
+  let current = doc.sentences.map(s => s.text).join(" ");
+
+  while (wordCount(current) > target[1] && keep.size > 1){
+    let dropId: number | undefined = undefined;
+    for (let i = ids.length - 1; i >= 0; i--){
+      const id = ids[i];
+      if (keep.has(id) && !protect.has(id)){ dropId = id; break; }
+    }
+    if (dropId === undefined) break;
+    keep.delete(dropId);
+    current = doc.sentences.filter(s => keep.has(s.id)).map(s => s.text).join(" ");
+  }
+
+  const wordsNow = wordCount(current);
+  const fits = wordsNow >= target[0] && wordsNow <= target[1];
+
+  return { text: current, keptIds: Array.from(keep), metrics: { words: wordsNow, target, fits } };
+}

@@ -1,0 +1,120 @@
+export type Sent = { id:number; text:string; lower:string; tokens:string[] };
+export type CauseEffect = { sentenceId:number; cause:string; effect:string };
+export type SeqItem = { sentenceId:number; text:string; marker:string; pos:number };
+export type Doc = {
+  title: string;
+  sentences: Sent[];
+  salient: number[];
+  entities: string[];
+  numbers: string[];
+  cause: CauseEffect[];
+  sequence: SeqItem[];
+  tone: "positive"|"negative"|"mixed"|"neutral";
+  purpose: "inform"|"persuade"|"entertain"|"explain";
+};
+
+const POS = new Set(["first","second","third","finally","next","then","after","before","lastly"]);
+const CAUSE_L = ["because","since","due to","as a result of"];
+const EFFECT_L = ["so","therefore","thus","hence","as a result"];
+const POS_WORDS = ["benefit","increase","improve","success","safer","cleaner","support","progress"];
+const NEG_WORDS = ["problem","decline","risk","danger","failure","worse","complain","violence","pollution","dirty","lack","fear","crisis"];
+
+function split(text:string):Sent[] {
+  const parts = (text || "").replace(/\s+/g," ").trim().split(/(?<=[.!?])\s+/).filter(Boolean);
+  let id = 1;
+  return parts.map(p => ({
+    id: id++,
+    text: p.trim(),
+    lower: p.toLowerCase(),
+    tokens: p.toLowerCase().match(/[a-z???????0-9'-]+/gi) || []
+  }));
+}
+function keyWords(s:string) {
+  return (s.toLowerCase().match(/[a-z???????]{3,}/g) || [])
+    .filter(w => !["the","and","for","with","this","that","have","has","was","were","but","because","therefore"].includes(w));
+}
+function jaccard(a:Set<string>, b:Set<string>) {
+  let i = 0; for (const x of a) if (b.has(x)) i++;
+  return i / Math.max(1, a.size + b.size - i);
+}
+function scoreSentence(s:Sent, titleKs:Set<string>) {
+  let score = 0;
+  score += jaccard(new Set(s.tokens), titleKs) * 2;
+  if (s.tokens.length >= 8 && s.tokens.length <= 35) score += 0.5;
+  if (CAUSE_L.some(c=>s.lower.includes(c))) score += 0.7;
+  if (EFFECT_L.some(c=>s.lower.includes(c))) score += 0.7;
+  if ([...POS].some(m=>s.lower.includes(` ${m} `))) score += 0.3;
+  return score;
+}
+function findEntities(sents:Sent[]) {
+  const ents = new Set<string>();
+  const nums = new Set<string>();
+  const month = /(january|february|march|april|may|june|july|august|september|october|november|december)/i;
+  for (const s of sents) {
+    (s.text.match(/\b([A-Z][a-z]+(?:\s[A-Z][a-z]+){0,3})\b/g) || []).forEach(x=> ents.add(x));
+    (s.text.match(/\b\d{1,4}(?:\.\d+)?%?\b/g) || []).forEach(x=> nums.add(x));
+    if (month.test(s.lower)) ents.add((s.text.match(month)||[])[0]);
+  }
+  return { entities:[...ents].slice(0,20), numbers:[...nums].slice(0,20) };
+}
+function findCause(sents:Sent[]): CauseEffect[] {
+  const out: CauseEffect[] = [];
+  for (const s of sents) {
+    for (const c of CAUSE_L) if (s.lower.includes(c)) {
+      const [lhs,rhs] = s.text.split(new RegExp(c,"i"));
+      if (lhs && rhs) out.push({ sentenceId:s.id, cause: lhs.trim(), effect: rhs.trim() });
+    }
+    for (const e of EFFECT_L) if (s.lower.includes(e)) {
+      const [lhs,rhs] = s.text.split(new RegExp(e,"i"));
+      if (lhs && rhs) out.push({ sentenceId:s.id, cause: lhs.trim(), effect: rhs.trim() });
+    }
+  }
+  return out.slice(0,4);
+}
+function findSequence(sents:Sent[]): SeqItem[] {
+  const out: SeqItem[] = [];
+  for (const s of sents) {
+    for (const m of POS) {
+      const pos = s.lower.indexOf(` ${m} `);
+      if (pos >= 0) out.push({ sentenceId:s.id, text:s.text, marker:m, pos });
+    }
+    const time = s.text.match(/\b(19|20|21)\d{2}\b/g);
+    if (time) out.push({ sentenceId:s.id, text:s.text, marker: time[0], pos: s.text.indexOf(time[0]) });
+  }
+  return out.slice(0,6);
+}
+function decideTone(sents:Sent[]): "positive"|"negative"|"mixed"|"neutral" {
+  let pos = 0, neg = 0;
+  for (const s of sents) {
+    for (const w of POS_WORDS) if (s.lower.includes(w)) pos++;
+    for (const w of NEG_WORDS) if (s.lower.includes(w)) neg++;
+  }
+  if (pos && neg) return "mixed";
+  if (pos) return "positive";
+  if (neg) return "negative";
+  return "neutral";
+}
+function decidePurpose(sents:Sent[]): "inform"|"persuade"|"entertain"|"explain" {
+  const txt = sents.map(s=>s.lower).join(" ");
+  const persuadeHints = /(should|must|urge|call on|we need to|ban|vote|support)/i;
+  const entertainHints = /(story|joke|funny|humor)/i;
+  const explainHints = /(how|why|steps|process|first|then|finally)/i;
+  if (persuadeHints.test(txt)) return "persuade";
+  if (entertainHints.test(txt)) return "entertain";
+  if (explainHints.test(txt)) return "explain";
+  return "inform";
+}
+
+export function analyze(text:string, title:string="Generated Text") {
+  const sentences = split(text);
+  const titleKs = new Set(keyWords(title));
+  const scored = sentences.map(s => ({ id:s.id, score: scoreSentence(s, titleKs) }))
+                          .sort((a,b)=>b.score-a.score).map(x=>x.id);
+  const top = scored.slice(0,3);
+  const { entities, numbers } = findEntities(sentences);
+  const cause = findCause(sentences);
+  const sequence = findSequence(sentences);
+  const tone = decideTone(sentences);
+  const purpose = decidePurpose(sentences);
+  return { title, sentences, salient: top, entities, numbers, cause, sequence, tone, purpose };
+}
