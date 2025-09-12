@@ -1,6 +1,7 @@
 import { Document, HeadingLevel, Packer, Paragraph, TextRun, PageBreak } from "docx";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 type Sections = {
   standard: string;
