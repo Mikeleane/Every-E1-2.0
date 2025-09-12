@@ -4,4 +4,11 @@
 @media print {
   .print\:hidden { display: none !important; }
   article { break-inside: avoid; }
+}@media print {
+  .print\:hidden { display: none !important; }
+  .print\:break-before-page { break-before: page; }
+  article { break-inside: avoid; }
+  body { font-size: 12pt; line-height: 1.5; }
 }
+/* Dyslexic-friendly tweak (already applied by class names on the page) */
+.dyslexic-friendly { letter-spacing: 0.02em; word-spacing: 0.12em; line-height: 1.75; }

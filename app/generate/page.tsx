@@ -12,6 +12,8 @@ type GeneratePayload = {
   outputLanguage: string;
   sourceText?: string;
   sourceUrl?: string;
+  youtubeUrl?: string;
+  imageQuery?: string;
   preActivities: string[];
   vocab: string[];
   grammar: string[];
@@ -34,6 +36,8 @@ const DEFAULT_PAYLOAD: GeneratePayload = {
   outputLanguage: "English",
   sourceText: "",
   sourceUrl: "",
+  youtubeUrl: "",
+  imageQuery: "",
   preActivities: [],
   vocab: [],
   grammar: [],
@@ -88,12 +92,57 @@ export default function GeneratePage() {
     await generate();
   }
 
+  async function exportDocx() {
+    if (!outputs) return;
+    const res = await fetch("/api/export", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        standard: outputs.standard,
+        adaptive: outputs.adaptive,
+        teacher: outputs.teacher,
+        meta: {
+          level: payload.level,
+          outputType: payload.outputType,
+          outputLanguage: payload.outputLanguage,
+          isPublic: payload.isPublic,
+          examStyle: payload.examStyle,
+          sourceUrl: payload.sourceUrl,
+          youtubeUrl: payload.youtubeUrl,
+          imageQuery: payload.imageQuery,
+        },
+      }),
+    });
+    if (!res.ok) {
+      alert("Export failed");
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `aontas-${payload.level}.docx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <main className="p-6 space-y-6">
       <header className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">Aontas — Builder</h1>
         <div className="flex items-center gap-2">
           <PrintButton />
+          <button
+            type="button"
+            className="rounded-md border px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
+            onClick={() => void exportDocx()}
+            disabled={!outputs}
+            title="Export sections to Word (.docx)"
+          >
+            Export .docx
+          </button>
         </div>
       </header>
 
@@ -105,7 +154,7 @@ export default function GeneratePage() {
         }}
       >
         {/* Left: Controls */}
-        <section className="space-y-4">
+        <section className="space-y-4 print:hidden">
           <div className="flex items-center gap-3">
             <label className="font-medium">Public school</label>
             <input
@@ -185,6 +234,27 @@ export default function GeneratePage() {
 
           <div className="grid md:grid-cols-2 gap-4">
             <label className="space-y-1">
+              <span className="block text-sm font-medium">YouTube link (optional)</span>
+              <input
+                className="border rounded-md p-2 w-full"
+                placeholder="https://www.youtube.com/watch?v=..."
+                value={payload.youtubeUrl}
+                onChange={(e) => update("youtubeUrl", e.target.value)}
+              />
+            </label>
+            <label className="space-y-1">
+              <span className="block text-sm font-medium">Image search (optional)</span>
+              <input
+                className="border rounded-md p-2 w-full"
+                placeholder="keywords for Google Images"
+                value={payload.imageQuery}
+                onChange={(e) => update("imageQuery", e.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <label className="space-y-1">
               <span className="block text-sm font-medium">Key vocabulary (comma-separated)</span>
               <input
                 className="border rounded-md p-2 w-full"
@@ -243,10 +313,7 @@ export default function GeneratePage() {
               onChange={(e) => update("dyslexicFriendly", e.target.checked)}
             />
           </div>
-        </section>
 
-        {/* Right: Actions & Output */}
-        <section className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="submit"
@@ -265,25 +332,22 @@ export default function GeneratePage() {
               Simplify (now {payload.level})
             </button>
           </div>
+        </section>
 
-          {err && <p className="text-red-600 text-sm">Error: {err}</p>}
-
-          {outputs && (
-            <div className={payload.dyslexicFriendly ? "space-y-4 leading-8 tracking-wide" : "space-y-4"}>
-              <article className="border rounded-xl p-4">
-                <h2 className="font-semibold mb-2">Standard content</h2>
-                <p className="whitespace-pre-wrap">{outputs.standard}</p>
-              </article>
-              <article className="border rounded-xl p-4">
-                <h2 className="font-semibold mb-2">Adaptive content (LD)</h2>
-                <p className="whitespace-pre-wrap">{outputs.adaptive}</p>
-              </article>
-              <article className="border rounded-xl p-4 print:hidden">
-                <h2 className="font-semibold mb-2">Teacher notes + Answer key</h2>
-                <p className="whitespace-pre-wrap">{outputs.teacher}</p>
-              </article>
-            </div>
-          )}
+        {/* Right: Output */}
+        <section className={payload.dyslexicFriendly ? "space-y-4 leading-8 tracking-wide" : "space-y-4"}>
+          <article className="border rounded-xl p-4">
+            <h2 className="font-semibold mb-2">Standard content</h2>
+            <p className="whitespace-pre-wrap">{outputs?.standard ?? "—"}</p>
+          </article>
+          <article className="border rounded-xl p-4">
+            <h2 className="font-semibold mb-2">Adaptive content (LD)</h2>
+            <p className="whitespace-pre-wrap">{outputs?.adaptive ?? "—"}</p>
+          </article>
+          <article className="border rounded-xl p-4 page-break-before print:break-before-page">
+            <h2 className="font-semibold mb-2">Teacher notes + Answer key</h2>
+            <p className="whitespace-pre-wrap">{outputs?.teacher ?? "—"}</p>
+          </article>
         </section>
       </form>
     </main>
