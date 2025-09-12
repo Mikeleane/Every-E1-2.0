@@ -1,5 +1,6 @@
-import PrintButton from "@/components/PrintButton";
 "use client";
+import PrintButton from "@/components/PrintButton";
+
 import React from "react";
 
 type QA = { q: string; a?: string };
@@ -76,11 +77,11 @@ export default function GeneratePage() {
           <input placeholder="https://example.com/article" value={url} onChange={e=>setUrl(e.target.value)} style={{width:"100%"}}/>
         </label>
         <label>Text
-          <textarea placeholder="Paste any article or text here…" value={text} onChange={e=>setText(e.target.value)} rows={8} style={{width:"100%"}}/>
+          <textarea placeholder="Paste any article or text hereÃ¢â‚¬Â¦" value={text} onChange={e=>setText(e.target.value)} rows={8} style={{width:"100%"}}/>
         </label>
         <div style={{display:"flex",gap:8}}>
           <button type="button" onClick={generate} disabled={loading} style={{padding:"8px 14px"}}>
-            {loading ? "Generating…" : "Generate"}
+            {loading ? "GeneratingÃ¢â‚¬Â¦" : "Generate"}
           </button>
           <button type="button" onClick={()=>setShowQs(s=>!s)} style={{padding:"8px 14px"}}>
             {showQs ? "Hide questions" : "Show questions"}
@@ -105,7 +106,7 @@ export default function GeneratePage() {
           {showQs && (
             <>
               <h3 style={{fontWeight:700}}>Questions</h3>
-              <ol>{pack.questions?.map((qa,i)=><li key={i}><b>{qa.q}</b>{qa.a ? ` — ${qa.a}` : ""}</li>)}</ol>
+              <ol>{pack.questions?.map((qa,i)=><li key={i}><b>{qa.q}</b>{qa.a ? ` Ã¢â‚¬â€ ${qa.a}` : ""}</li>)}</ol>
             </>
           )}
         </section>
