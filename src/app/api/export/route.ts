@@ -28,15 +28,15 @@ export async function POST(req: Request): Promise<Response> {
     );
 
   const meta: string[] = [
-    \`Level: \${body.meta.level}\`,
-    \`Type: \${body.meta.outputType}\`,
-    \`Language: \${body.meta.outputLanguage}\`,
-    \`Public school: \${body.meta.isPublic ? "Yes" : "No"}\`,
+    "Level: " + body.meta.level,
+    "Type: " + body.meta.outputType,
+    "Language: " + body.meta.outputLanguage,
+    "Public school: " + (body.meta.isPublic ? "Yes" : "No"),
   ];
-  if (body.meta.examStyle && body.meta.examStyle !== "None") meta.push(\`Exam style: \${body.meta.examStyle}\`);
-  if (body.meta.sourceUrl) meta.push(\`Source: \${body.meta.sourceUrl}\`);
-  if (body.meta.youtubeUrl) meta.push(\`YouTube: \${body.meta.youtubeUrl}\`);
-  if (body.meta.imageQuery) meta.push(\`Images: https://www.google.com/images?q=\${encodeURIComponent(body.meta.imageQuery)}\`);
+  if (body.meta.examStyle && body.meta.examStyle !== "None") meta.push("Exam style: " + body.meta.examStyle);
+  if (body.meta.sourceUrl) meta.push("Source: " + body.meta.sourceUrl);
+  if (body.meta.youtubeUrl) meta.push("YouTube: " + body.meta.youtubeUrl);
+  if (body.meta.imageQuery) meta.push("Images: https://www.google.com/images?q=" + encodeURIComponent(body.meta.imageQuery));
 
   const doc = new Document({
     sections: [{
@@ -61,7 +61,7 @@ export async function POST(req: Request): Promise<Response> {
   return new Response(buffer, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "Content-Disposition": 'attachment; filename="aontas-activity.docx"',
+      "Content-Disposition": "attachment; filename=\"aontas-activity.docx\"",
     },
     status: 200,
   });

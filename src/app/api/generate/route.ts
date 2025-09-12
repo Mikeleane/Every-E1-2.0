@@ -23,7 +23,6 @@ type Body = {
 };
 
 const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
-const API_KEY = process.env.OPENAI_API_KEY;
 
 function lengths(preset: LengthPreset | undefined) {
   const P = preset ?? "Standard";
@@ -87,7 +86,7 @@ export async function POST(req: Request): Promise<Response> {
 
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: \`Bearer \${API}\` },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${API}` },
     body: JSON.stringify({
       model: MODEL,
       response_format: { type: "json_object" },
@@ -102,7 +101,7 @@ export async function POST(req: Request): Promise<Response> {
 
   if (!r.ok) {
     const txt = await r.text();
-    return new Response(JSON.stringify({ error: \`Upstream \${r.status}: \${txt}\` }), { status: 500 });
+    return new Response(JSON.stringify({ error: `Upstream ${r.status}: ${txt}` }), { status: 500 });
   }
 
   const data = await r.json();
