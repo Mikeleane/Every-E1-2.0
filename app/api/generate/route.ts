@@ -20,7 +20,7 @@ type Body = {
   dyslexicFriendly: boolean;
 };
 
-const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini"; // override via env if you want
+const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 const API_KEY = process.env.OPENAI_API_KEY;
 
 function makePrompt(b: Body) {
@@ -46,8 +46,8 @@ You are an inclusive language-education assistant. Create classroom materials th
 
 Return a SINGLE JSON object with keys:
 - "standard": string
-- "adaptive": string   (for dyslexia/ADHD/autism: short sentences, explicit headings, bullet points, key ideas first; avoid idioms; plain vocabulary.)
-- "teacher": string    (CEFR rationale, accessibility notes, inclusion/representation review, answer key for chosen activities, and alternatives if any language is sensitive for ${b.level}. If a Source URL is provided, include a one-line citation.)
+- "adaptive": string
+- "teacher": string
 
 Never include backticks or extra commentary—JSON only.
 
@@ -58,6 +58,9 @@ Source text (use or summarize appropriately):
 ${src}
 `.trim();
 }
+
+const S = (v: unknown) =>
+  typeof v === "string" ? v : JSON.stringify(v, null, 2);
 
 export async function POST(req: Request): Promise<Response> {
   if (!API_KEY) {
@@ -89,16 +92,22 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const data = await r.json();
-  const content = data?.choices?.[0]?.message?.content || "{}";
+  const content = data?.choices?.[0]?.message?.content ?? "{}";
 
-  let parsed: unknown;
+  let parsed: any;
   try {
     parsed = JSON.parse(content);
   } catch {
-    parsed = { standard: "", adaptive: "", teacher: content }; // resilient fallback
+    parsed = { standard: "", adaptive: "", teacher: content };
   }
 
-  return new Response(JSON.stringify(parsed), {
+  const out = {
+    standard: S(parsed.standard),
+    adaptive: S(parsed.adaptive),
+    teacher: S(parsed.teacher),
+  };
+
+  return new Response(JSON.stringify(out), {
     headers: { "Content-Type": "application/json" },
     status: 200,
   });

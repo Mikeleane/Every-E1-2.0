@@ -74,8 +74,11 @@ export default function GeneratePage() {
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { standard: string; adaptive: string; teacher: string };
-      setOutputs(data);
+      const raw = await res.json() as any;
+const norm = (v: unknown) => (typeof v === "string" ? v : JSON.stringify(v, null, 2));
+const data = { standard: norm(raw.standard), adaptive: norm(raw.adaptive), teacher: norm(raw.teacher) };
+setOutputs(data);
+
     } catch (e: unknown) {
       setErr((e as Error).message ?? "Unknown error");
     } finally {
