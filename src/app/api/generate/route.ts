@@ -36,7 +36,7 @@ function lengths(preset?: LengthPreset) {
 function makePrompt(b: Body) {
   const L = lengths(b.lengthPreset);
   const aims = [
-    `Audience: school classroom (${b.isPublic ? "public" : "non-public"),
+    `Audience: school classroom (${b.isPublic ? "public" : "non-public"}).`,
     `CEFR level: ${b.level}.`,
     `Output type: ${b.outputType}.`,
     `Language: ${b.outputLanguage}.`,
@@ -48,7 +48,7 @@ function makePrompt(b: Body) {
     b.youtubeUrl ? `Pair with YouTube: ${b.youtubeUrl}.` : "",
     b.imageQuery ? `Suggested images search: ${b.imageQuery}.` : "",
     b.sourceUrl ? `Source URL: ${b.sourceUrl}.` : "",
-    `Length preset: ${b.lengthPreset ?? "Standard"} (targets Ã¢â‚¬â€ standard:${L.std}, adaptive:${L.ad}, teacher:${L.teacher}, questions:${L.q),
+    `Length preset: ${b.lengthPreset ?? "Standard"} (targets ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â standard:${L.std}, adaptive:${L.ad}, teacher:${L.teacher}, questions:${L.q),
   ].filter(Boolean).join("\n");
 
   const src = (b.sourceText || "").trim() || "(no inline source text provided)";
@@ -73,17 +73,17 @@ All values MUST be plain text (no JSON/arrays/{} inside the values). Use simple 
     src,
     "",
     `ADAPTIVE OUTPUT RULES (LD):
-Ã¢â‚¬Â¢ Plain language; active voice. Avoid idioms/figurative language; if one appears, add a literal explanation immediately.
-Ã¢â‚¬Â¢ Sentence length: average Ã¢â€°Â¤ 15 words; never exceed 25 words.
-Ã¢â‚¬Â¢ Paragraphs: 1Ã¢â‚¬â€œ3 short sentences; one idea per paragraph.
-Ã¢â‚¬Â¢ Structure: put the most important idea first; add a heading every ~80Ã¢â‚¬â€œ120 words.
-Ã¢â‚¬Â¢ Lists: use bullet lists (3Ã¢â‚¬â€œ6 bullets) for enumerations; numbered steps (1., 2., 3.) for procedures.
-Ã¢â‚¬Â¢ Formatting hints for readers (assumed by UI): left-aligned, no full justification, bold for keywords only, no italics or ALL-CAPS.
-Ã¢â‚¬Â¢ Add a short "Vocabulary Preview" box with 3Ã¢â‚¬â€œ5 key words + student-friendly meanings.
-Ã¢â‚¬Â¢ After each section, include 1Ã¢â‚¬â€œ2 micro-questions (yes/no or 1Ã¢â‚¬â€œ2 short MCQs, Ã¢â€°Â¤3 options).
-Ã¢â‚¬Â¢ ADHD support: predictable pattern (Heading Ã¢â€ â€™ 2Ã¢â‚¬â€œ3 sentences Ã¢â€ â€™ tiny task); limit choices.
-Ã¢â‚¬Â¢ Autism support: avoid ambiguous phrasing ("maybe, sort of"); be explicit about who does what; keep sensory details neutral and brief.
-Ã¢â‚¬Â¢ End with a 5Ã¢â‚¬â€œ10 item word bank (glossary) of difficult words from the text.
+ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Plain language; active voice. Avoid idioms/figurative language; if one appears, add a literal explanation immediately.
+ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Sentence length: average ÃƒÂ¢Ã¢â‚¬Â°Ã‚Â¤ 15 words; never exceed 25 words.
+ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Paragraphs: 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“3 short sentences; one idea per paragraph.
+ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Structure: put the most important idea first; add a heading every ~80ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“120 words.
+ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Lists: use bullet lists (3ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“6 bullets) for enumerations; numbered steps (1., 2., 3.) for procedures.
+ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Formatting hints for readers (assumed by UI): left-aligned, no full justification, bold for keywords only, no italics or ALL-CAPS.
+ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Add a short "Vocabulary Preview" box with 3ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“5 key words + student-friendly meanings.
+ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ After each section, include 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“2 micro-questions (yes/no or 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“2 short MCQs, ÃƒÂ¢Ã¢â‚¬Â°Ã‚Â¤3 options).
+ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ADHD support: predictable pattern (Heading ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ 2ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“3 sentences ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ tiny task); limit choices.
+ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Autism support: avoid ambiguous phrasing ("maybe, sort of"); be explicit about who does what; keep sensory details neutral and brief.
+ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ End with a 5ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“10 item word bank (glossary) of difficult words from the text.
 Ensure all of the above while staying at the requested CEFR level. If a higher-level word is necessary, define it inline.`
   ].join("\n");
 }
@@ -96,8 +96,8 @@ async function generateViaOpenAI(prompt: string): Promise<{ standard: string; ad
   const key = process.env.OPENAI_API_KEY;
   if (!key) {
     return {
-      standard: `[DEMO] No OPENAI_API_KEY. Echoing prompt start:\n\n${prompt.slice(0, 400)}Ã¢â‚¬Â¦`,
-      adaptive: `[DEMO] Simplified for LD.\n\n${prompt.slice(0, 300)}Ã¢â‚¬Â¦`,
+      standard: `[DEMO] No OPENAI_API_KEY. Echoing prompt start:\n\n${prompt.slice(0, 400)}ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦`,
+      adaptive: `[DEMO] Simplified for LD.\n\n${prompt.slice(0, 300)}ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦`,
       teacher: `[DEMO] Teacher notes + answer key placeholder.`,
     };
   }
@@ -143,8 +143,8 @@ async function enforceMinimums(b: Body, out: {standard:string; adaptive:string; 
 
   if (tooShort.standard || tooShort.adaptive || tooShort.teacher || needQs) {
     const ask = `Please expand ONLY the missing pieces:
-- Targets: standard Ã¢â€°Â¥ ${L.std} words, adaptive Ã¢â€°Â¥ ${L.ad}, teacher Ã¢â€°Â¥ ${L.teacher}.
-- Ensure total questions Ã¢â€°Â¥ ${L.q} (add micro-questions after each section).
+- Targets: standard ÃƒÂ¢Ã¢â‚¬Â°Ã‚Â¥ ${L.std} words, adaptive ÃƒÂ¢Ã¢â‚¬Â°Ã‚Â¥ ${L.ad}, teacher ÃƒÂ¢Ã¢â‚¬Â°Ã‚Â¥ ${L.teacher}.
+- Ensure total questions ÃƒÂ¢Ã¢â‚¬Â°Ã‚Â¥ ${L.q} (add micro-questions after each section).
 Return a JSON object with any changed keys (standard/adaptive/teacher).`;
 
     const more = await generateViaOpenAI(makePrompt(b) + "\n\n" + ask);
