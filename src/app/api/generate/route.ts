@@ -29,14 +29,14 @@ function lengths(preset?: LengthPreset) {
     case "Brief":      return { std: 120, ad: 100, teacher: 120, q: 3 };
     case "Extended":   return { std: 300, ad: 220, teacher: 220, q: 8 };
     case "Exam pack":  return { std: 400, ad: 280, teacher: 260, q: 12 };
-    default:           return { std: 200, ad: 160, teacher: 180, q: 6 }; // "Standard"
+    default:           return { std: 200, ad: 160, teacher: 180, q: 6 }; // Standard
   }
 }
 
 function makePrompt(b: Body) {
   const L = lengths(b.lengthPreset);
   const aims = [
-    `Audience: school classroom (${b.isPublic ? "public" : "non-public"}).`,
+    `Audience: school classroom (${b.isPublic ? "public" : "non-public"),
     `CEFR level: ${b.level}.`,
     `Output type: ${b.outputType}.`,
     `Language: ${b.outputLanguage}.`,
@@ -48,7 +48,7 @@ function makePrompt(b: Body) {
     b.youtubeUrl ? `Pair with YouTube: ${b.youtubeUrl}.` : "",
     b.imageQuery ? `Suggested images search: ${b.imageQuery}.` : "",
     b.sourceUrl ? `Source URL: ${b.sourceUrl}.` : "",
-    `Length preset: ${b.lengthPreset ?? "Standard"} (targets — standard:${L.std}, adaptive:${L.ad}, teacher:${L.teacher}, questions:${L.q}).`,
+    `Length preset: ${b.lengthPreset ?? "Standard"} (targets Ã¢â‚¬â€ standard:${L.std}, adaptive:${L.ad}, teacher:${L.teacher}, questions:${L.q),
   ].filter(Boolean).join("\n");
 
   const src = (b.sourceText || "").trim() || "(no inline source text provided)";
@@ -73,17 +73,17 @@ All values MUST be plain text (no JSON/arrays/{} inside the values). Use simple 
     src,
     "",
     `ADAPTIVE OUTPUT RULES (LD):
-• Plain language; active voice. Avoid idioms/figurative language; if one appears, add a literal explanation immediately.
-• Sentence length: average ≤ 15 words; never exceed 25 words.
-• Paragraphs: 1–3 short sentences; one idea per paragraph.
-• Structure: put the most important idea first; add a heading every ~80–120 words.
-• Lists: use bullet lists (3–6 bullets) for enumerations; numbered steps (1., 2., 3.) for procedures.
-• Formatting hints for readers (assumed by UI): left-aligned, no full justification, bold for keywords only, no italics or ALL-CAPS.
-• Add a short "Vocabulary Preview" box with 3–5 key words + student-friendly meanings.
-• After each section, include 1–2 micro-questions (yes/no or 1–2 short MCQs, ≤3 options).
-• ADHD support: predictable pattern (Heading → 2–3 sentences → tiny task); limit choices.
-• Autism support: avoid ambiguous phrasing ("maybe, sort of"); be explicit about who does what; keep sensory details neutral and brief.
-• End with a 5–10 item word bank (glossary) of difficult words from the text.
+Ã¢â‚¬Â¢ Plain language; active voice. Avoid idioms/figurative language; if one appears, add a literal explanation immediately.
+Ã¢â‚¬Â¢ Sentence length: average Ã¢â€°Â¤ 15 words; never exceed 25 words.
+Ã¢â‚¬Â¢ Paragraphs: 1Ã¢â‚¬â€œ3 short sentences; one idea per paragraph.
+Ã¢â‚¬Â¢ Structure: put the most important idea first; add a heading every ~80Ã¢â‚¬â€œ120 words.
+Ã¢â‚¬Â¢ Lists: use bullet lists (3Ã¢â‚¬â€œ6 bullets) for enumerations; numbered steps (1., 2., 3.) for procedures.
+Ã¢â‚¬Â¢ Formatting hints for readers (assumed by UI): left-aligned, no full justification, bold for keywords only, no italics or ALL-CAPS.
+Ã¢â‚¬Â¢ Add a short "Vocabulary Preview" box with 3Ã¢â‚¬â€œ5 key words + student-friendly meanings.
+Ã¢â‚¬Â¢ After each section, include 1Ã¢â‚¬â€œ2 micro-questions (yes/no or 1Ã¢â‚¬â€œ2 short MCQs, Ã¢â€°Â¤3 options).
+Ã¢â‚¬Â¢ ADHD support: predictable pattern (Heading Ã¢â€ â€™ 2Ã¢â‚¬â€œ3 sentences Ã¢â€ â€™ tiny task); limit choices.
+Ã¢â‚¬Â¢ Autism support: avoid ambiguous phrasing ("maybe, sort of"); be explicit about who does what; keep sensory details neutral and brief.
+Ã¢â‚¬Â¢ End with a 5Ã¢â‚¬â€œ10 item word bank (glossary) of difficult words from the text.
 Ensure all of the above while staying at the requested CEFR level. If a higher-level word is necessary, define it inline.`
   ].join("\n");
 }
@@ -94,11 +94,10 @@ function S(v: unknown) {
 
 async function generateViaOpenAI(prompt: string): Promise<{ standard: string; adaptive: string; teacher: string }> {
   const key = process.env.OPENAI_API_KEY;
-  // Fallback demo if key is missing
   if (!key) {
     return {
-      standard: `[DEMO] No OPENAI_API_KEY. Echoing prompt start:\n\n${prompt.slice(0, 400)}…`,
-      adaptive: `[DEMO] Simplified for LD.\n\n${prompt.slice(0, 300)}…`,
+      standard: `[DEMO] No OPENAI_API_KEY. Echoing prompt start:\n\n${prompt.slice(0, 400)}Ã¢â‚¬Â¦`,
+      adaptive: `[DEMO] Simplified for LD.\n\n${prompt.slice(0, 300)}Ã¢â‚¬Â¦`,
       teacher: `[DEMO] Teacher notes + answer key placeholder.`,
     };
   }
@@ -129,11 +128,37 @@ async function generateViaOpenAI(prompt: string): Promise<{ standard: string; ad
   };
 }
 
+function wc(s: string) { return s.trim().split(/\s+/).filter(Boolean).length; }
+function countQs(s: string) { return (s.match(/\n\d+[\.)]\s/g) || []).length; }
+
+async function enforceMinimums(b: Body, out: {standard:string; adaptive:string; teacher:string}) {
+  const L = lengths(b.lengthPreset);
+  const tooShort = {
+    standard: wc(out.standard) < L.std,
+    adaptive: wc(out.adaptive) < L.ad,
+    teacher: wc(out.teacher) < L.teacher,
+  };
+  const totalQs = countQs(out.standard + "\n" + out.adaptive);
+  const needQs = totalQs < L.q;
+
+  if (tooShort.standard || tooShort.adaptive || tooShort.teacher || needQs) {
+    const ask = `Please expand ONLY the missing pieces:
+- Targets: standard Ã¢â€°Â¥ ${L.std} words, adaptive Ã¢â€°Â¥ ${L.ad}, teacher Ã¢â€°Â¥ ${L.teacher}.
+- Ensure total questions Ã¢â€°Â¥ ${L.q} (add micro-questions after each section).
+Return a JSON object with any changed keys (standard/adaptive/teacher).`;
+
+    const more = await generateViaOpenAI(makePrompt(b) + "\n\n" + ask);
+    out = { ...out, ...more };
+  }
+  return out;
+}
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as Body;
     const prompt = makePrompt(body);
-    const out = await generateViaOpenAI(prompt);
+    const out0 = await generateViaOpenAI(prompt);
+    const out  = await enforceMinimums(body, out0);
     return new Response(JSON.stringify(out), {
       headers: { "Content-Type": "application/json" },
       status: 200,
