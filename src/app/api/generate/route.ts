@@ -129,6 +129,10 @@ function lengths(preset?: LengthPreset) {
 function makePrompt(b: Body) {
   const L = lengths(b.lengthPreset);
   const aims = [
+  ...formatForOutputType(b.outputType),
+  "Under **Standard content**, after the main text, add a section titled `### Quick check` with **3 short comprehension questions** (no answers here).",
+  "Under **Adaptive content (LD)**, after the simplified text, add `### Quick check` with **2–3 very short questions** (yes/no or up to 3-option MCQs). Keep language simple; no answers here.",
+  "In **Teacher notes + Answer key**, include an **Answer key** giving answers to all questions from Standard and Adaptive, in order.",
   `Audience: school classroom (${b.isPublic ? "public" : "non-public"}).`,
   `CEFR level: ${b.level}.`,
   `Output type: ${b.outputType}.`,
@@ -246,6 +250,33 @@ Return a JSON object with any changed keys (standard/adaptive/teacher).`;
   return out;
 }
 
+function formatForOutputType(t: string): string[] {
+  switch (t) {
+    case "Informal email":
+      return [
+        "Write BOTH the Standard and Adaptive texts as an informal email between classmates.",
+        "Friendly tone, use contractions and everyday vocabulary; no headings.",
+        "Structure: Greeting (e.g., “Hi Alex,”) → 2–4 short paragraphs → closing line → sign-off (e.g., “Best, Sam”).",
+        "Do NOT include subject lines, metadata, or teacher notes inside the email body."
+      ];
+    case "Formal email":
+      return [
+        "Write BOTH texts as a formal email to a teacher/official.",
+        "Polite tone; clear paragraphs; include the purpose in the first paragraph.",
+        "Structure: Greeting (e.g., “Dear Dr …,”) → 2–4 paragraphs → courteous sign-off (“Sincerely,” + name).",
+        "No headings."
+      ];
+    case "Letter":
+      return [
+        "Write BOTH texts as a letter with greeting, 2–4 body paragraphs, and sign-off.",
+        "Neutral tone; no headings."
+      ];
+    default:
+      return [
+        "Write BOTH texts as continuous prose. Headings are allowed if suitable for the type."
+      ];
+  }
+}
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as Body;
