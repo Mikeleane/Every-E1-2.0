@@ -1,2 +1,5 @@
 ﻿src/app/api/generate/route.ts.bak_*
 *.bak_*
+
+app/
+
